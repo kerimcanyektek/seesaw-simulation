@@ -10,11 +10,10 @@ const logArea = document.getElementById("log-area");
 const resetBtn = document.getElementById("reset-button");
 
 
-let objects = []; // {weight, distance, el}
+let objects = []; 
 let upcomingWeight = randomWeight();
 
-
-const MAX_ANGLE = 30; // degree limit
+const MAX_ANGLE = 30; 
 const PLANK_WIDTH = 400;
 
 nextWeightDisplay.textContent = upcomingWeight + " kg";
@@ -47,4 +46,76 @@ function writeLog(weight, d) {
     div.textContent =
         `${weight}kg dropped on ${d < 0 ? "← LEFT" : "RIGHT →"} | ${Math.abs(d).toFixed(0)}px`;
     logArea.prepend(div);
+}
+
+plank.addEventListener("mousemove", (e) => {
+    const rect = plank.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+
+    previewBall.style.left = mouseX + "px";
+});
+
+
+plank.addEventListener("click", (e) => {
+    const rect = plank.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+
+    const center = rect.width / 2;
+    const distance = clickX - center;
+
+    const weight = upcomingWeight;
+
+    const ball = document.createElement("div");
+    ball.className = "object";
+    ball.textContent = weight + "kg";
+    ball.style.left = clickX + "px";
+    ball.style.top = "50%";
+    ball.style.width = ballSize(weight) + "px";
+    ball.style.height = ballSize(weight) + "px";
+    ball.style.background = ballColor(weight);
+
+    objectsContainer.appendChild(ball);
+
+    objects.push({
+        weight,
+        distance,
+        el: ball
+    });
+
+    writeLog(weight, distance);
+
+    upcomingWeight = randomWeight();
+    nextWeightDisplay.textContent = upcomingWeight + " kg";
+    updatePreviewBall();
+
+    updatePhysics();
+});
+
+
+function updatePhysics() {
+    let leftTorque = 0;
+    let rightTorque = 0;
+    let leftTotal = 0;
+    let rightTotal = 0;
+
+    objects.forEach(o => {
+        const d = Math.abs(o.distance);
+
+        if (o.distance < 0) {
+            leftTotal += o.weight;
+            leftTorque += o.weight * d;
+        } else {
+            rightTotal += o.weight;
+            rightTorque += o.weight * d;
+        }
+    });
+
+    const torqueDiff = rightTorque - leftTorque;
+    const angle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, torqueDiff / 10));
+
+    plank.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+
+    leftWeightDisplay.textContent = leftTotal.toFixed(1) + " kg";
+    rightWeightDisplay.textContent = rightTotal.toFixed(1) + " kg";
+    tiltAngleDisplay.textContent = angle.toFixed(1) + "°";
 }
