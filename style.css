@@ -37,3 +37,56 @@ body {
     font-size: 18px;
     font-weight: bold;
 }
+
+.simulation-area {
+    position: relative;
+    height: 300px;
+    width: 400px; 
+    margin: 0 auto;
+    border: 1px solid #ddd;
+    margin-bottom: 40px;
+}
+
+.pivot {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background-color: #333;
+    border-radius: 50%;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+}
+
+.plank {
+    position: absolute;
+    width: 400px;
+    height: 10px;
+    background-color: #6d4c41;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%); 
+    transform-origin: 50% 50%;    
+    cursor: pointer;
+    z-index: 1;
+}
+
+.reset-button {
+    display: block;
+    margin: 20px auto;
+    padding: 10px 20px;
+    background-color: #3f51b5;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.log-area {
+    min-height: 100px;
+    padding: 10px;
+    border-top: 1px solid #eee;
+    font-size: 14px;
+    color: #555;
+}
