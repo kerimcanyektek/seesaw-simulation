@@ -1,92 +1,155 @@
 body {
-    font-family: Arial, sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 100vh;
-    margin: 0;
-    background-color: #f4f4f4;
+  font-family: Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  margin: 0;
+  background-color: #f4f4f4;
 }
 
 .container {
-    background-color: #fff;
-    padding: 20px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    width: 600px;
-    margin-top: 50px;
+  background-color: #fff;
+  padding: 20px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  width: 600px;
+  margin-top: 50px;
+  border-radius: 8px;
 }
 
 .info-panel {
-    display: flex;
-    justify-content: space-around;
-    margin-bottom: 20px;
-    text-align: center;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
 }
 
 .stat .label {
-    display: block;
-    font-size: 12px;
-    color: #888;
-    margin-bottom: 5px;
+  display: block;
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 5px;
+  text-transform: uppercase;
 }
 
 .stat .value {
-    display: block;
-    font-size: 18px;
-    font-weight: bold;
+  display: block;
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
 }
 
 .simulation-area {
-    position: relative;
-    height: 300px;
-    width: 400px; 
-    margin: 0 auto;
-    border: 1px solid #ddd;
-    margin-bottom: 40px;
+  position: relative;
+  height: 300px;
+  width: 400px;
+  margin: 0 auto;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 40px;
+  background: #fafafa;
+  overflow: hidden;
 }
 
 .pivot {
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    background-color: #333;
-    border-radius: 50%;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 2;
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 22px solid transparent;
+  border-right: 22px solid transparent;
+  border-top: 35px solid #444;
+  left: 50%;
+  top: 55%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
 }
 
 .plank {
-    position: absolute;
-    width: 400px;
-    height: 10px;
-    background-color: #6d4c41;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%); 
-    transform-origin: 50% 50%;    
-    cursor: pointer;
-    z-index: 1;
+  position: absolute;
+  width: 400px;
+  height: 12px;
+  background: linear-gradient(90deg, #68452d, #8b6343);
+  border-radius: 4px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transform-origin: 50% 10px;
+  cursor: pointer;
+  z-index: 1;
+}
+
+#objects-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  top: 0;
+  left: 0;
+}
+
+.object {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  transition: all 0.25s ease;
+}
+
+#preview-ball {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0.75;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: width 0.2s, height 0.2s, background 0.2s, opacity 0.2s;
+  z-index: 999;
 }
 
 .reset-button {
-    display: block;
-    margin: 20px auto;
-    padding: 10px 20px;
-    background-color: #3f51b5;
-    color: white;
-    border: none;
-    cursor: pointer;
-    border-radius: 5px;
+  display: block;
+  margin: 20px auto;
+  padding: 10px 20px;
+  background-color: #3f51b5;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  transition: 0.2s;
 }
 
+.reset-button:hover {
+  background: #2e3fa6;
+}
+
+/* ===== LOG ===== */
+
 .log-area {
-    min-height: 100px;
-    padding: 10px;
-    border-top: 1px solid #eee;
-    font-size: 14px;
-    color: #555;
+  min-height: 100px;
+  max-height: 180px;
+  padding: 10px;
+  border-top: 1px solid #eee;
+  font-size: 13px;
+  color: #555;
+  overflow-y: auto;
 }
