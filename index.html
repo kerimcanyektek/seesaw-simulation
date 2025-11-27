@@ -9,27 +9,41 @@
 </head>
 
 <body>
-    <div class="container"></div>
-    <div class="info-panel">
-        <div id="left-weight-display">LEFT WEIGHT: 0.0 kg</div>
-        <div id="next-weight-display">NEXT WEIGHT: ? kg</div>
-        <div id="right-weight-display">RIGHT WEIGHT: 0.0 kg</div>
-        <div id="tilt-angle-display">TILT ANGLE: 0.0°</div>
-    </div>
-
-    <div class="area">
-        <div id="plank">
+    <div class="container">
+        
+        <div class="info-panel">
+            <div class="stat">
+                <span class="label">LEFT WEIGHT</span>
+                <span id="left-weight-display" class="value">0.0 kg</span>
+            </div>
+            <div class="stat">
+                <span class="label">NEXT WEIGHT</span>
+                <span id="next-weight-display" class="value">? kg</span>
+            </div>
+            <div class="stat">
+                <span class="label">RIGHT WEIGHT</span>
+                <span id="right-weight-display" class="value">0.0 kg</span>
+            </div>
+            <div class="stat">
+                <span class="label">TILT ANGLE</span>
+                <span id="tilt-angle-display" class="value">0.0°</span>
+            </div>
         </div>
-        <div class="pivot"></div>
-    </div>
 
-    <div class="controls">
-        <button id="reset-button">Reset Seesaw</button>
-    </div>
+        <div id="simulation-area" class="simulation-area">
+            <div class="pivot"></div>
+            
+            <div id="plank" class="plank">
+                </div>
+        </div>
 
-    <div id="log-area"></div>
-    </div>
+        <button id="reset-button" class="reset-button">
+            <i class="fas fa-undo"></i> Reset Seesaw
+        </button>
 
+        <div id="log-area" class="log-area"></div>
+    </div>
+    
     <script src="app.js"></script>
 </body>
 
