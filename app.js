@@ -60,12 +60,12 @@ function updatePreviewBall() {
 // LOG
 
 function writeLog(weight, distance) {
-  const side = distance < 0 ? "left" : "right";
-  const px = Math.abs(distance).toFixed(0);
+    const side = distance < 0 ? "left" : distance > 0 ? "right" : "center";
+    const px = Math.abs(distance).toFixed(0);
 
-  const div = document.createElement("div");
-  div.textContent = `${weight}kg dropped on ${side} side at ${px}px from center`;
-  logArea.prepend(div);
+    const div = document.createElement("div");
+    div.textContent = `${weight}kg dropped on ${side} side at ${px}px from center`;
+    logArea.prepend(div);
 }
 
 // LOCAL STORAGE
@@ -133,10 +133,18 @@ function spawnObject(clickX, weight, distance) {
 
 // PREVIEW — MOUSE FOLLOW
 
-simulationArea.addEventListener("mousemove", (e) => {
-    const simRect = simulationArea.getBoundingClientRect();
-    const plankRect = plank.getBoundingClientRect();
+plank.addEventListener("mouseenter", () => {
+    previewBall.style.opacity = "0.45";
+});
 
+plank.addEventListener("mouseleave", () => {
+    previewBall.style.opacity = "0";
+});
+
+plank.addEventListener("mousemove", (e) => {
+    const plankRect = plank.getBoundingClientRect();
+    const simRect = simulationArea.getBoundingClientRect();
+    
     const mouseX = e.clientX - simRect.left;
     const centerY = plankRect.top - simRect.top + plankRect.height / 2;
 
@@ -144,17 +152,13 @@ simulationArea.addEventListener("mousemove", (e) => {
     previewBall.style.top = centerY + "px";
 });
 
-// DROP — CLICK ANYWHERE
+// DROP — CLICK ON PLANK ONLY
 
-simulationArea.addEventListener("click", (e) => {
-    const simRect = simulationArea.getBoundingClientRect();
+plank.addEventListener("click", (e) => {
+    e.stopPropagation();
+    
     const plankRect = plank.getBoundingClientRect();
-
-    const mouseX = e.clientX - simRect.left;
-
-    const rel = mouseX / simRect.width;
-    const clickX = rel * plankRect.width;
-
+    const clickX = e.clientX - plankRect.left;
     const center = plankRect.width / 2;
     const distance = clickX - center;
 
@@ -182,9 +186,12 @@ function updatePhysics() {
         if (o.distance < 0) {
             leftSum += o.weight;
             leftTorque += o.weight * d;
-        } else {
+        } else if (o.distance > 0) {
             rightSum += o.weight;
             rightTorque += o.weight * d;
+        } else {
+            leftSum += o.weight / 2;
+            rightSum += o.weight / 2;
         }
     });
 
