@@ -1,6 +1,9 @@
+// DOM 
+
 const plank = document.getElementById("plank");
 const previewBall = document.getElementById("preview-ball");
 const objectsContainer = document.getElementById("objects-container");
+const simulationArea = document.getElementById("simulation-area");
 
 const leftWeightDisplay = document.getElementById("left-weight-display");
 const rightWeightDisplay = document.getElementById("right-weight-display");
@@ -9,20 +12,32 @@ const tiltAngleDisplay = document.getElementById("tilt-angle-display");
 const logArea = document.getElementById("log-area");
 const resetBtn = document.getElementById("reset-button");
 
+// SETTINGS 
+
+const MAX_ANGLE = 30;
+const STORAGE_KEY = "seesaw_state_v2";
+
+// STATE 
 
 let objects = [];
 let upcomingWeight = randomWeight();
 
-const MAX_ANGLE = 30;
-const PLANK_WIDTH = 400;
+// INIT
 
-nextWeightDisplay.textContent = upcomingWeight + " kg";
-updatePreviewBall();
+init();
+
+function init() {
+    loadState();
+    nextWeightDisplay.textContent = `${upcomingWeight} kg`;
+    updatePreviewBall();
+    updatePhysics();
+}
+
+// HELPERS
 
 function randomWeight() {
     return Math.floor(Math.random() * 10) + 1;
 }
-
 
 function ballSize(weight) {
     return 20 + weight * 4;
@@ -35,36 +50,68 @@ function ballColor(weight) {
 }
 
 function updatePreviewBall() {
-    previewBall.textContent = upcomingWeight + "kg";
-    previewBall.style.width = ballSize(upcomingWeight) + "px";
-    previewBall.style.height = ballSize(upcomingWeight) + "px";
+    previewBall.textContent = `${upcomingWeight}kg`;
+    const s = ballSize(upcomingWeight);
+    previewBall.style.width = s + "px";
+    previewBall.style.height = s + "px";
     previewBall.style.background = ballColor(upcomingWeight);
 }
 
-function writeLog(weight, d) {
-    const div = document.createElement("div");
-    div.textContent =
-        `${weight}kg dropped on ${d < 0 ? "← LEFT" : "RIGHT →"} | ${Math.abs(d).toFixed(0)}px`;
-    logArea.prepend(div);
+// LOG
+
+function writeLog(weight, distance) {
+  const side = distance < 0 ? "left" : "right";
+  const px = Math.abs(distance).toFixed(0);
+
+  const div = document.createElement("div");
+  div.textContent = `${weight}kg dropped on ${side} side at ${px}px from center`;
+  logArea.prepend(div);
 }
 
-plank.addEventListener("mousemove", (e) => {
-    const rect = plank.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
+// LOCAL STORAGE
 
-    previewBall.style.left = mouseX + "px";
-});
+function saveState() {
+    const plankRect = plank.getBoundingClientRect();
+    const width = plankRect.width;
 
+    localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+            upcomingWeight,
+            objects: objects.map(o => ({
+                weight: o.weight,
+                relX: o.clickX / width
+            }))
+        })
+    );
+}
 
-plank.addEventListener("click", (e) => {
-    const rect = plank.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
+function loadState() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
 
-    const center = rect.width / 2;
-    const distance = clickX - center;
+    const state = JSON.parse(raw);
+    if (!state || !state.objects) return;
 
-    const weight = upcomingWeight;
+    upcomingWeight = state.upcomingWeight || randomWeight();
 
+    const plankRect = plank.getBoundingClientRect();
+    const width = plankRect.width;
+    const center = width / 2;
+
+    objectsContainer.innerHTML = "";
+    objects = [];
+
+    state.objects.forEach(o => {
+        const clickX = o.relX * width;
+        const distance = clickX - center;
+        spawnObject(clickX, o.weight, distance);
+    });
+}
+
+// CREATE OBJECT
+
+function spawnObject(clickX, weight, distance) {
     const ball = document.createElement("div");
     ball.className = "object";
     ball.textContent = weight + "kg";
@@ -79,57 +126,93 @@ plank.addEventListener("click", (e) => {
     objects.push({
         weight,
         distance,
-        el: ball
+        el: ball,
+        clickX
     });
+}
 
-    writeLog(weight, distance);
+// PREVIEW — MOUSE FOLLOW
+
+simulationArea.addEventListener("mousemove", (e) => {
+    const simRect = simulationArea.getBoundingClientRect();
+    const plankRect = plank.getBoundingClientRect();
+
+    const mouseX = e.clientX - simRect.left;
+    const centerY = plankRect.top - simRect.top + plankRect.height / 2;
+
+    previewBall.style.left = mouseX + "px";
+    previewBall.style.top = centerY + "px";
+});
+
+// DROP — CLICK ANYWHERE
+
+simulationArea.addEventListener("click", (e) => {
+    const simRect = simulationArea.getBoundingClientRect();
+    const plankRect = plank.getBoundingClientRect();
+
+    const mouseX = e.clientX - simRect.left;
+
+    const rel = mouseX / simRect.width;
+    const clickX = rel * plankRect.width;
+
+    const center = plankRect.width / 2;
+    const distance = clickX - center;
+
+    spawnObject(clickX, upcomingWeight, distance);
+    writeLog(upcomingWeight, distance);
 
     upcomingWeight = randomWeight();
-    nextWeightDisplay.textContent = upcomingWeight + " kg";
+    nextWeightDisplay.textContent = `${upcomingWeight} kg`;
     updatePreviewBall();
 
     updatePhysics();
+    saveState();
 });
 
+// PHYSICS
 
 function updatePhysics() {
     let leftTorque = 0;
     let rightTorque = 0;
-    let leftTotal = 0;
-    let rightTotal = 0;
+    let leftSum = 0;
+    let rightSum = 0;
 
     objects.forEach(o => {
         const d = Math.abs(o.distance);
-
         if (o.distance < 0) {
-            leftTotal += o.weight;
+            leftSum += o.weight;
             leftTorque += o.weight * d;
         } else {
-            rightTotal += o.weight;
+            rightSum += o.weight;
             rightTorque += o.weight * d;
         }
     });
 
-    const torqueDiff = rightTorque - leftTorque;
-    const angle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, torqueDiff / 10));
+    const diff = rightTorque - leftTorque;
+    const angle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, diff / 10));
 
     plank.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
 
-    leftWeightDisplay.textContent = leftTotal.toFixed(1) + " kg";
-    rightWeightDisplay.textContent = rightTotal.toFixed(1) + " kg";
-    tiltAngleDisplay.textContent = angle.toFixed(1) + "°";
+    leftWeightDisplay.textContent = `${leftSum.toFixed(1)} kg`;
+    rightWeightDisplay.textContent = `${rightSum.toFixed(1)} kg`;
+    tiltAngleDisplay.textContent = `${angle.toFixed(1)}°`;
 }
+
+// RESET
 
 resetBtn.addEventListener("click", () => {
     objects.forEach(o => o.el.remove());
     objects = [];
 
-    plank.style.transform = "translate(-50%, -50%) rotate(0deg)";
+    plank.style.transform = `translate(-50%, -50%) rotate(0deg)`;
     leftWeightDisplay.textContent = "0.0 kg";
     rightWeightDisplay.textContent = "0.0 kg";
     tiltAngleDisplay.textContent = "0.0°";
     logArea.innerHTML = "";
 
     upcomingWeight = randomWeight();
+    nextWeightDisplay.textContent = `${upcomingWeight} kg`;
     updatePreviewBall();
+
+    localStorage.removeItem(STORAGE_KEY);
 });

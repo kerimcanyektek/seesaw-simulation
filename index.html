@@ -11,7 +11,8 @@
 <body>
     <div class="container">
 
-        <div class="info-panel">
+        <!-- Stats -->
+        <section class="info-panel">
             <div class="stat">
                 <span class="label">LEFT WEIGHT</span>
                 <span id="left-weight-display" class="value">0.0 kg</span>
@@ -28,23 +29,29 @@
                 <span class="label">TILT ANGLE</span>
                 <span id="tilt-angle-display" class="value">0.0°</span>
             </div>
-        </div>
+        </section>
 
-        <div id="simulation-area" class="simulation-area">
+        <!-- Simulation -->
+        <section id="simulation-area" class="simulation-area">
+
             <div class="pivot"></div>
 
             <div id="plank" class="plank">
                 <div id="objects-container"></div>
             </div>
 
-            <div id="preview-ball"></div>
-        </div>
+            <!-- UI Feedback Only -->
+            <div id="preview-ball" aria-hidden="true"></div>
+        </section>
 
+        <!-- Controls -->
         <button id="reset-button" class="reset-button">
             Reset Seesaw
         </button>
 
+        <!-- Developer log -->
         <div id="log-area" class="log-area"></div>
+
     </div>
 
     <script src="app.js"></script>
