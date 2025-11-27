@@ -10,10 +10,10 @@ const logArea = document.getElementById("log-area");
 const resetBtn = document.getElementById("reset-button");
 
 
-let objects = []; 
+let objects = [];
 let upcomingWeight = randomWeight();
 
-const MAX_ANGLE = 30; 
+const MAX_ANGLE = 30;
 const PLANK_WIDTH = 400;
 
 nextWeightDisplay.textContent = upcomingWeight + " kg";
@@ -119,3 +119,17 @@ function updatePhysics() {
     rightWeightDisplay.textContent = rightTotal.toFixed(1) + " kg";
     tiltAngleDisplay.textContent = angle.toFixed(1) + "°";
 }
+
+resetBtn.addEventListener("click", () => {
+    objects.forEach(o => o.el.remove());
+    objects = [];
+
+    plank.style.transform = "translate(-50%, -50%) rotate(0deg)";
+    leftWeightDisplay.textContent = "0.0 kg";
+    rightWeightDisplay.textContent = "0.0 kg";
+    tiltAngleDisplay.textContent = "0.0°";
+    logArea.innerHTML = "";
+
+    upcomingWeight = randomWeight();
+    updatePreviewBall();
+});
