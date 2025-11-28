@@ -27,10 +27,25 @@ let upcomingWeight = randomWeight();
 init();
 
 function init() {
-    loadState();
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+        try {
+            const state = JSON.parse(raw);
+            if (state.upcomingWeight) {
+                upcomingWeight = state.upcomingWeight;
+            }
+        } catch (e) {
+            console.error("Failed to parse saved state:", e);
+        }
+    }
+    
     nextWeightDisplay.textContent = `${upcomingWeight} kg`;
     updatePreviewBall();
-    updatePhysics();
+    
+    requestAnimationFrame(() => {
+        loadStateObjects();
+        updatePhysics();
+    });
 }
 
 // HELPERS
@@ -86,27 +101,29 @@ function saveState() {
     );
 }
 
-function loadState() {
+function loadStateObjects() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
 
-    const state = JSON.parse(raw);
-    if (!state || !state.objects) return;
+    try {
+        const state = JSON.parse(raw);
+        if (!state || !state.objects || state.objects.length === 0) return;
 
-    upcomingWeight = state.upcomingWeight || randomWeight();
+        const plankRect = plank.getBoundingClientRect();
+        const width = plankRect.width;
+        const center = width / 2;
 
-    const plankRect = plank.getBoundingClientRect();
-    const width = plankRect.width;
-    const center = width / 2;
+        objectsContainer.innerHTML = "";
+        objects = [];
 
-    objectsContainer.innerHTML = "";
-    objects = [];
-
-    state.objects.forEach(o => {
-        const clickX = o.relX * width;
-        const distance = clickX - center;
-        spawnObject(clickX, o.weight, distance);
-    });
+        state.objects.forEach(o => {
+            const clickX = o.relX * width;
+            const distance = clickX - center;
+            spawnObject(clickX, o.weight, distance);
+        });
+    } catch (e) {
+        console.error("Failed to load saved state:", e);
+    }
 }
 
 // CREATE OBJECT
