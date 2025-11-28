@@ -16,15 +16,23 @@ const resetBtn = document.getElementById("reset-button");
 
 const MAX_ANGLE = 30;
 const STORAGE_KEY = "seesaw_state_v2";
+const CENTER_THRESHOLD = 5;
 
 // STATE 
 
 let objects = [];
 let upcomingWeight = randomWeight();
+let cachedPlankRect = null;
+let cachedSimRect = null;
+let currentPlankWidth = 0;
 
 // INIT
 
-init();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
 
 function init() {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -38,13 +46,24 @@ function init() {
             console.error("Failed to parse saved state:", e);
         }
     }
-    
+
     nextWeightDisplay.textContent = `${upcomingWeight} kg`;
     updatePreviewBall();
-    
+
     requestAnimationFrame(() => {
-        loadStateObjects();
-        updatePhysics();
+        requestAnimationFrame(() => {
+            const savedTransform = plank.style.transform;
+            plank.style.transform = 'translate(-50%, -50%) rotate(0deg)';
+
+            requestAnimationFrame(() => {
+                loadStateObjects();
+                if (objects.length > 0) {
+                    updatePhysics();
+                } else {
+                    plank.style.transform = savedTransform;
+                }
+            });
+        });
     });
 }
 
@@ -75,7 +94,11 @@ function updatePreviewBall() {
 // LOG
 
 function writeLog(weight, distance) {
-    const side = distance < 0 ? "left" : distance > 0 ? "right" : "center";
+    const side = Math.abs(distance) < CENTER_THRESHOLD
+        ? "center"
+        : distance < 0
+            ? "left"
+            : "right";
     const px = Math.abs(distance).toFixed(0);
 
     const div = document.createElement("div");
@@ -86,17 +109,25 @@ function writeLog(weight, distance) {
 // LOCAL STORAGE
 
 function saveState() {
-    const plankRect = plank.getBoundingClientRect();
-    const width = plankRect.width;
+    const width = currentPlankWidth || plank.getBoundingClientRect().width;
+
+    if (width === 0) {
+        console.warn("Cannot save state: plank width is 0");
+        return;
+    }
 
     localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
             upcomingWeight,
-            objects: objects.map(o => ({
-                weight: o.weight,
-                relX: o.clickX / width
-            }))
+            plankWidth: width,
+            objects: objects.map(o => {
+                const relX = Math.max(0, Math.min(1, o.clickX / width));
+                return {
+                    weight: o.weight,
+                    relX: relX
+                };
+            })
         })
     );
 }
@@ -111,13 +142,23 @@ function loadStateObjects() {
 
         const plankRect = plank.getBoundingClientRect();
         const width = plankRect.width;
+
+        if (width === 0 || plankRect.height === 0) {
+            console.warn("Plank not ready yet, delaying load...");
+            setTimeout(loadStateObjects, 50);
+            return;
+        }
+
+        currentPlankWidth = width;
+
         const center = width / 2;
 
         objectsContainer.innerHTML = "";
         objects = [];
 
         state.objects.forEach(o => {
-            const clickX = o.relX * width;
+            const clampedRelX = Math.max(0, Math.min(1, o.relX));
+            const clickX = clampedRelX * width;
             const distance = clickX - center;
             spawnObject(clickX, o.weight, distance);
         });
@@ -151,19 +192,22 @@ function spawnObject(clickX, weight, distance) {
 // PREVIEW — MOUSE FOLLOW
 
 plank.addEventListener("mouseenter", () => {
+    cachedPlankRect = plank.getBoundingClientRect();
+    cachedSimRect = simulationArea.getBoundingClientRect();
     previewBall.style.opacity = "0.45";
 });
 
 plank.addEventListener("mouseleave", () => {
     previewBall.style.opacity = "0";
+    cachedPlankRect = null;
+    cachedSimRect = null;
 });
 
 plank.addEventListener("mousemove", (e) => {
-    const plankRect = plank.getBoundingClientRect();
-    const simRect = simulationArea.getBoundingClientRect();
-    
-    const mouseX = e.clientX - simRect.left;
-    const centerY = plankRect.top - simRect.top + plankRect.height / 2;
+    if (!cachedPlankRect || !cachedSimRect) return;
+
+    const mouseX = e.clientX - cachedSimRect.left;
+    const centerY = cachedSimRect.height / 2;
 
     previewBall.style.left = mouseX + "px";
     previewBall.style.top = centerY + "px";
@@ -173,13 +217,20 @@ plank.addEventListener("mousemove", (e) => {
 
 plank.addEventListener("click", (e) => {
     e.stopPropagation();
-    
+
     const plankRect = plank.getBoundingClientRect();
     const clickX = e.clientX - plankRect.left;
-    const center = plankRect.width / 2;
-    const distance = clickX - center;
 
-    spawnObject(clickX, upcomingWeight, distance);
+    if (currentPlankWidth === 0) {
+        currentPlankWidth = plankRect.width;
+    }
+
+    const clampedClickX = Math.max(0, Math.min(plankRect.width, clickX));
+
+    const center = plankRect.width / 2;
+    const distance = clampedClickX - center;
+
+    spawnObject(clampedClickX, upcomingWeight, distance);
     writeLog(upcomingWeight, distance);
 
     upcomingWeight = randomWeight();
@@ -188,6 +239,8 @@ plank.addEventListener("click", (e) => {
 
     updatePhysics();
     saveState();
+
+    cachedPlankRect = plank.getBoundingClientRect();
 });
 
 // PHYSICS
@@ -200,15 +253,16 @@ function updatePhysics() {
 
     objects.forEach(o => {
         const d = Math.abs(o.distance);
-        if (o.distance < 0) {
-            leftSum += o.weight;
-            leftTorque += o.weight * d;
-        } else if (o.distance > 0) {
-            rightSum += o.weight;
-            rightTorque += o.weight * d;
-        } else {
+
+        if (d < CENTER_THRESHOLD) {
             leftSum += o.weight / 2;
             rightSum += o.weight / 2;
+        } else if (o.distance < 0) {
+            leftSum += o.weight;
+            leftTorque += o.weight * d;
+        } else {
+            rightSum += o.weight;
+            rightTorque += o.weight * d;
         }
     });
 
@@ -237,6 +291,8 @@ resetBtn.addEventListener("click", () => {
     upcomingWeight = randomWeight();
     nextWeightDisplay.textContent = `${upcomingWeight} kg`;
     updatePreviewBall();
+
+    currentPlankWidth = 0;
 
     localStorage.removeItem(STORAGE_KEY);
 });
