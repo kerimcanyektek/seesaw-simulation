@@ -15,7 +15,7 @@ const resetBtn = document.getElementById("reset-button");
 // SETTINGS 
 
 const MAX_ANGLE = 30;
-const STORAGE_KEY = "seesaw_state_v2";
+const STORAGE_KEY = "seesaw_state_v3";
 const CENTER_THRESHOLD = 5;
 
 // STATE 
@@ -25,11 +25,12 @@ let upcomingWeight = randomWeight();
 let cachedPlankRect = null;
 let cachedSimRect = null;
 let currentPlankWidth = 0;
+let lastAngle = 0;
 
-// INIT
+// INIT 
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
 } else {
     init();
 }
@@ -39,11 +40,10 @@ function init() {
     if (raw) {
         try {
             const state = JSON.parse(raw);
-            if (state.upcomingWeight) {
-                upcomingWeight = state.upcomingWeight;
-            }
+            if (state.upcomingWeight) upcomingWeight = state.upcomingWeight;
+            if (state.lastAngle !== undefined) lastAngle = state.lastAngle;
         } catch (e) {
-            console.error("Failed to parse saved state:", e);
+            console.error("Could not load local storage data:", e);
         }
     }
 
@@ -51,23 +51,15 @@ function init() {
     updatePreviewBall();
 
     requestAnimationFrame(() => {
+        plank.style.transform = `translate(-50%, -50%) rotate(${lastAngle}deg)`;
         requestAnimationFrame(() => {
-            const savedTransform = plank.style.transform;
-            plank.style.transform = 'translate(-50%, -50%) rotate(0deg)';
-
-            requestAnimationFrame(() => {
-                loadStateObjects();
-                if (objects.length > 0) {
-                    updatePhysics();
-                } else {
-                    plank.style.transform = savedTransform;
-                }
-            });
+            loadStateObjects();
+            updatePhysics();
         });
     });
 }
 
-// HELPERS
+// HELPERS 
 
 function randomWeight() {
     return Math.floor(Math.random() * 10) + 1;
@@ -85,20 +77,21 @@ function ballColor(weight) {
 
 function updatePreviewBall() {
     previewBall.textContent = `${upcomingWeight}kg`;
-    const s = ballSize(upcomingWeight);
-    previewBall.style.width = s + "px";
-    previewBall.style.height = s + "px";
+    previewBall.style.width = ballSize(upcomingWeight) + "px";
+    previewBall.style.height = ballSize(upcomingWeight) + "px";
     previewBall.style.background = ballColor(upcomingWeight);
 }
 
-// LOG
+// LOG 
 
 function writeLog(weight, distance) {
-    const side = Math.abs(distance) < CENTER_THRESHOLD
-        ? "center"
-        : distance < 0
-            ? "left"
-            : "right";
+    const side =
+        Math.abs(distance) < CENTER_THRESHOLD
+            ? "center"
+            : distance < 0
+                ? "left"
+                : "right";
+
     const px = Math.abs(distance).toFixed(0);
 
     const div = document.createElement("div");
@@ -106,28 +99,18 @@ function writeLog(weight, distance) {
     logArea.prepend(div);
 }
 
-// LOCAL STORAGE
+// STORAGE 
 
 function saveState() {
-    const width = currentPlankWidth || plank.getBoundingClientRect().width;
-
-    if (width === 0) {
-        console.warn("Cannot save state: plank width is 0");
-        return;
-    }
-
     localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
             upcomingWeight,
-            plankWidth: width,
-            objects: objects.map(o => {
-                const relX = Math.max(0, Math.min(1, o.clickX / width));
-                return {
-                    weight: o.weight,
-                    relX: relX
-                };
-            })
+            lastAngle,
+            objects: objects.map(o => ({
+                weight: o.weight,
+                distance: o.distance
+            }))
         })
     );
 }
@@ -136,43 +119,41 @@ function loadStateObjects() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
 
+    let state;
     try {
-        const state = JSON.parse(raw);
-        if (!state || !state.objects || state.objects.length === 0) return;
-
-        const plankRect = plank.getBoundingClientRect();
-        const width = plankRect.width;
-
-        if (width === 0 || plankRect.height === 0) {
-            console.warn("Plank not ready yet, delaying load...");
-            setTimeout(loadStateObjects, 50);
-            return;
-        }
-
-        currentPlankWidth = width;
-
-        const center = width / 2;
-
-        objectsContainer.innerHTML = "";
-        objects = [];
-
-        state.objects.forEach(o => {
-            const clampedRelX = Math.max(0, Math.min(1, o.relX));
-            const clickX = clampedRelX * width;
-            const distance = clickX - center;
-            spawnObject(clickX, o.weight, distance);
-        });
+        state = JSON.parse(raw);
     } catch (e) {
-        console.error("Failed to load saved state:", e);
+        console.error("Could not parse stored JSON:", e);
+        return;
     }
+
+    if (!state.objects || state.objects.length === 0) return;
+
+    const rect = plank.getBoundingClientRect();
+    if (rect.width === 0) {
+        setTimeout(loadStateObjects, 50);
+        return;
+    }
+
+    currentPlankWidth = rect.width;
+    const center = rect.width / 2;
+
+    objectsContainer.innerHTML = "";
+    objects = [];
+
+    state.objects.forEach(o => {
+        let clickX = center + o.distance;
+        clickX = Math.max(0, Math.min(rect.width, clickX));
+        spawnObject(clickX, o.weight, o.distance);
+    });
 }
 
-// CREATE OBJECT
+// CREATE OBJECT 
 
 function spawnObject(clickX, weight, distance) {
     const ball = document.createElement("div");
     ball.className = "object";
-    ball.textContent = weight + "kg";
+    ball.textContent = `${weight}kg`;
     ball.style.left = clickX + "px";
     ball.style.top = "50%";
     ball.style.width = ballSize(weight) + "px";
@@ -181,15 +162,10 @@ function spawnObject(clickX, weight, distance) {
 
     objectsContainer.appendChild(ball);
 
-    objects.push({
-        weight,
-        distance,
-        el: ball,
-        clickX
-    });
+    objects.push({ weight, distance, clickX, el: ball });
 }
 
-// PREVIEW — MOUSE FOLLOW
+// PREVIEW MOUSE 
 
 plank.addEventListener("mouseenter", () => {
     cachedPlankRect = plank.getBoundingClientRect();
@@ -203,34 +179,25 @@ plank.addEventListener("mouseleave", () => {
     cachedSimRect = null;
 });
 
-plank.addEventListener("mousemove", (e) => {
-    if (!cachedPlankRect || !cachedSimRect) return;
-
+plank.addEventListener("mousemove", e => {
+    if (!cachedSimRect) return;
     const mouseX = e.clientX - cachedSimRect.left;
-    const centerY = cachedSimRect.height / 2;
-
     previewBall.style.left = mouseX + "px";
-    previewBall.style.top = centerY + "px";
+    previewBall.style.top = cachedSimRect.height / 2 + "px";
 });
 
-// DROP — CLICK ON PLANK ONLY
+// DROP 
 
-plank.addEventListener("click", (e) => {
-    e.stopPropagation();
+plank.addEventListener("click", e => {
+    const rect = plank.getBoundingClientRect();
+    const clickX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
 
-    const plankRect = plank.getBoundingClientRect();
-    const clickX = e.clientX - plankRect.left;
+    if (!currentPlankWidth) currentPlankWidth = rect.width;
 
-    if (currentPlankWidth === 0) {
-        currentPlankWidth = plankRect.width;
-    }
+    const center = rect.width / 2;
+    const distance = clickX - center;
 
-    const clampedClickX = Math.max(0, Math.min(plankRect.width, clickX));
-
-    const center = plankRect.width / 2;
-    const distance = clampedClickX - center;
-
-    spawnObject(clampedClickX, upcomingWeight, distance);
+    spawnObject(clickX, upcomingWeight, distance);
     writeLog(upcomingWeight, distance);
 
     upcomingWeight = randomWeight();
@@ -239,11 +206,9 @@ plank.addEventListener("click", (e) => {
 
     updatePhysics();
     saveState();
-
-    cachedPlankRect = plank.getBoundingClientRect();
 });
 
-// PHYSICS
+// PHYSICS 
 
 function updatePhysics() {
     let leftTorque = 0;
@@ -266,23 +231,31 @@ function updatePhysics() {
         }
     });
 
-    const diff = rightTorque - leftTorque;
-    const angle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, diff / 10));
+    const torqueDifference = rightTorque - leftTorque;
 
-    plank.style.transform = `translate(-50%, -50%) rotate(${angle}deg)`;
+    const angle = torqueDifference / 10;
+
+    const finalAngle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, angle));
+
+    plank.style.transform = `translate(-50%, -50%) rotate(${finalAngle}deg)`;
 
     leftWeightDisplay.textContent = `${leftSum.toFixed(1)} kg`;
     rightWeightDisplay.textContent = `${rightSum.toFixed(1)} kg`;
-    tiltAngleDisplay.textContent = `${angle.toFixed(1)}°`;
+    tiltAngleDisplay.textContent = `${finalAngle.toFixed(1)}°`;
+
+    lastAngle = finalAngle;
+    saveState();
 }
 
-// RESET
+// RESET 
 
 resetBtn.addEventListener("click", () => {
     objects.forEach(o => o.el.remove());
     objects = [];
 
+    lastAngle = 0;
     plank.style.transform = `translate(-50%, -50%) rotate(0deg)`;
+
     leftWeightDisplay.textContent = "0.0 kg";
     rightWeightDisplay.textContent = "0.0 kg";
     tiltAngleDisplay.textContent = "0.0°";
@@ -291,8 +264,6 @@ resetBtn.addEventListener("click", () => {
     upcomingWeight = randomWeight();
     nextWeightDisplay.textContent = `${upcomingWeight} kg`;
     updatePreviewBall();
-
-    currentPlankWidth = 0;
 
     localStorage.removeItem(STORAGE_KEY);
 });
