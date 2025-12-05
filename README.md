@@ -195,8 +195,5 @@ This project demonstrates proficiency in:
 
 - GitHub: [@kerimcanyektek](https://github.com/kerimcanyektek)
 
-## 📄 License
-
-This project was created as part of a hiring case study.
 
 ---
